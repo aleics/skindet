@@ -28,6 +28,8 @@ Mat src;
 // Output image
 Mat out;
 
+Rect bbox_hand;
+
 Mat fgMaskMOG2;
 
 // Margin of the ROI
@@ -41,6 +43,8 @@ int median_filter_size = 1;
 
 // Thresh used on the Threshold filter
 int threshold_thresh = 22;
+
+int min_contour_area = 5000;
 
 // Source window name
 string srcWindowName = "src";
@@ -116,7 +120,6 @@ int main(int argc, char const *argv[]) {
 
     //pMOG2->apply(roi, fgMaskMOG2);
 
-
     imshow(srcWindowName, src);
     //imshow("mog2", fgMaskMOG2);
     imshow(outWindowName, out);
@@ -130,6 +133,7 @@ void define_trackbars() {
   //createTrackbar("canny thresh", outWindowName, &canny_thresh, 200);
   createTrackbar("threshold thresh", outWindowName, &threshold_thresh, 50);
   createTrackbar("median filter", outWindowName, &median_filter_size, 15);
+  createTrackbar("minimum contour area", outWindowName, &min_contour_area, 15000);
 }
 
 // Detect the color of the hand
@@ -183,8 +187,7 @@ Mat biggest_contour(const Mat& in) {
   double biggest_area = 0.0;
   int index_biggest_contour = 0;
   Rect rect_hand;
-
-  Mat out = Mat::zeros( in.size(), CV_8UC3 );
+  Mat out_contour = Mat::zeros( in.size(), CV_8UC3 );
 
   // get the contours of the input image
   findContours(in, 
@@ -202,9 +205,13 @@ Mat biggest_contour(const Mat& in) {
       rect_hand = boundingRect(contours[i]);      
     }
   }
+
+  if(biggest_area < min_contour_area) {
+    return Mat::zeros( in.size(), CV_8UC3 );
+  }
   
   // draw in the output image the biggest contour
-  drawContours(out, 
+  drawContours(out_contour, 
                contours, 
                index_biggest_contour, 
                Scalar(255, 255, 255), 
@@ -212,8 +219,10 @@ Mat biggest_contour(const Mat& in) {
                8, 
                hierarchy);
 
-  // add a bounding box of the hand in the source
-  rectangle(src, rect_hand,  Scalar(0,255,0), 1, 8, 0);
+  bbox_hand = rect_hand;
 
-  return out;
+  // add a bounding box of the hand in the source
+  rectangle(src, bbox_hand,  Scalar(0, 0, 255), 1, 8, 0);
+
+  return out_contour;
 }
